@@ -32,15 +32,40 @@ def record_current_answer(answer, current_question_id, session):
     '''
     Validates and stores the answer for the current question to django session.
     '''
-    return True, ""
+    #Validating the answer.....
+    if not answer:
+        return False, "Answer cannot be empty"
+    
+    if 'answers' not in session:
+        session['answers'] = {}
+    session['answers'][current_question_id] = answer
+
+    session.modified = True
+
+
+    return True, "Answer recorded successfully"
 
 
 def get_next_question(current_question_id):
     '''
     Fetches the next question from the PYTHON_QUESTION_LIST based on the current_question_id.
     '''
+    #creating lookup dictionary for quick access to questions and their ID's
+    question_lookup = {question["id"]:question for question in PYTHON_QUESTION_LIST}
 
-    return "dummy question", -1
+    if current_question_id not in question_lookup:
+        return "Question not foud",-1
+    
+    #gettin index of current_question_id....
+    current_index = current_question_id
+
+    #checking if there is next question.....
+    next_index = current_index + 1
+    if next_index in question_lookup:
+        next_question = question_lookup[next_index]
+        return next_question["question"], next_question["id"]
+    else:
+        return "dummy question", -1
 
 
 def generate_final_response(session):
@@ -49,4 +74,20 @@ def generate_final_response(session):
     by the user for questions in the PYTHON_QUESTION_LIST.
     '''
 
-    return "dummy result"
+    #creating lookup dic for correct ans.....
+    correct_ans_lookup = {question["id"]:question["answer"] for question in PYTHON_QUESTION_LIST}
+
+
+    user_ans = session.get('answers', {})
+    total_question = len(PYTHON_QUESTION_LIST)
+    correct_count = 0
+
+    for question_id,correct_ans in correct_ans_lookup:
+        user_ans = user_ans.get(question_id)
+        if user_ans and user_ans.strip().lower() == correct_ans.strip().lower():
+            correct_count += 1
+
+    score = correct_count/total_question * 100
+    msg = f"You answered {correct_count} out of {total_question} questions correctly. Your score is {score:.2f}%."
+
+    return msg
